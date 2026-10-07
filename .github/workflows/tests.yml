@@ -19,11 +19,11 @@ jobs:
       - name: Zainstaluj zależności
         run: pip install -r requirements.txt
 
-      - name: Zainstaluj przeglądarkę Playwright (Chromium + biblioteki systemowe)
-        run: playwright install --with-deps chromium
+      - name: Zainstaluj przeglądarki Playwright (Chromium + Firefox + biblioteki systemowe)
+        run: playwright install --with-deps chromium firefox
 
-      - name: Uruchom testy
-        run: pytest --alluredir=reports/allure_results
+      - name: Uruchom testy (Chromium + Firefox)
+        run: pytest --browser firefox --alluredir=reports/allure_results
 
       - name: Zapisz raport jako artefakt (nawet jeśli testy padły)
         if: always()
