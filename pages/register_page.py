@@ -6,6 +6,24 @@ class RegisterPage(BasePage):
     def __init__(self, page: Page) -> None:
         super().__init__(page)
 
+    # --- DOM selectors — headings ---
+    @property
+    def heading_account_info(self) -> Locator:
+        return self.page.locator("h2:has-text('Enter Account Information')")
+
+    @property
+    def heading_address_info(self) -> Locator:
+        return self.page.locator("h2:has-text('Address Information')")
+
+    # --- DOM selectors — pre-filled fields ---
+    @property
+    def name_field(self) -> Locator:
+        return self.page.locator("input[data-qa='name']")
+
+    @property
+    def email_field(self) -> Locator:
+        return self.page.locator("input[data-qa='email']")
+
     # --- DOM selectors ---
     @property
     def title_mr(self) -> Locator:
@@ -54,6 +72,10 @@ class RegisterPage(BasePage):
     @property
     def address1(self) -> Locator:
         return self.page.locator("input[data-qa='address']")
+
+    @property
+    def address2(self) -> Locator:
+        return self.page.locator("input[data-qa='address2']")
 
     @property
     def country_select(self) -> Locator:

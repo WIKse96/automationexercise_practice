@@ -70,3 +70,11 @@ class BasePage:
 
     def is_logged_in(self) -> bool:
         return self.page.locator("a[href='/logout']").is_visible()
+
+    # --- Confirmation pages (account_created, delete_account) ---
+    @property
+    def continue_button(self) -> Locator:
+        return self.page.locator('[data-qa="continue-button"]')
+
+    def click_continue(self) -> None:
+        self.continue_button.click()

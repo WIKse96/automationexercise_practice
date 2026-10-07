@@ -9,7 +9,9 @@ class CartPage(BasePage):
     # --- DOM selectors ---
     @property
     def cart_rows(self) -> Locator:
-        return self.page.locator("tr.cart_menu ~ tr")
+        # tr.cart_menu (nagłówek) jest w <thead>, wiersze produktów w <tbody> —
+        # to NIE jest rodzeństwo, więc "tr.cart_menu ~ tr" nigdy nic nie znajduje.
+        return self.page.locator("#cart_info_table tbody tr")
 
     @property
     def proceed_to_checkout_button(self) -> Locator:

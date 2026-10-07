@@ -6,6 +6,15 @@ class LoginPage(BasePage):
     def __init__(self, page: Page) -> None:
         super().__init__(page)
 
+    # --- DOM selectors — headings ---
+    @property
+    def heading_login(self) -> Locator:
+        return self.page.locator("h2:has-text('Login to your account')")
+
+    @property
+    def heading_signup(self) -> Locator:
+        return self.page.locator("h2:has-text('New User Signup!')")
+
     # --- DOM selectors — login form ---
     @property
     def login_email(self) -> Locator:
