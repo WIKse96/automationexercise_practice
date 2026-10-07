@@ -106,32 +106,40 @@ class RegisterPage(BasePage):
         return self.page.locator("h2[data-qa='account-created']")
 
     # --- Actions ---
-    def fill_account_info(self, password: str, day: str, month: str, year: str) -> None:
-        self.title_mr.check()
-        self.password.fill(password)
-        self.days_select.select_option(day)
-        self.months_select.select_option(month)
-        self.years_select.select_option(year)
+    def fill_account_form(self, user: dict) -> None:
+        if user.get("title") == "Mrs":
+            self.title_mrs.check()
+        elif user.get("title") == "Mr":
+            self.title_mr.check()
+        # brak "title" w danych -> celowo nie zaznaczamy żadnego radio
+        # (pole opcjonalne, testy graniczne sprawdzają rejestrację bez title)
 
-    def fill_address_info(
-        self,
-        first_name: str,
-        last_name: str,
-        address: str,
-        country: str,
-        state: str,
-        city: str,
-        zipcode: str,
-        mobile: str,
-    ) -> None:
-        self.first_name.fill(first_name)
-        self.last_name.fill(last_name)
-        self.address1.fill(address)
-        self.country_select.select_option(country)
-        self.state.fill(state)
-        self.city.fill(city)
-        self.zipcode.fill(zipcode)
-        self.mobile_number.fill(mobile)
+        self.password.fill(user["password"])
+
+        if user.get("birth_date"):
+            self.days_select.select_option(user["birth_date"])
+        if user.get("birth_month"):
+            self.months_select.select_option(user["birth_month"])
+        if user.get("birth_year"):
+            self.years_select.select_option(user["birth_year"])
+
+        if user.get("newsletter"):
+            self.newsletter_checkbox.check()
+        if user.get("optin"):
+            self.optin_checkbox.check()
+
+        self.first_name.fill(user["firstname"])
+        self.last_name.fill(user["lastname"])
+        if user.get("company"):
+            self.company.fill(user["company"])
+        self.address1.fill(user["address1"])
+        if user.get("address2"):
+            self.address2.fill(user["address2"])
+        self.country_select.select_option(user["country"])
+        self.state.fill(user["state"])
+        self.city.fill(user["city"])
+        self.zipcode.fill(user["zipcode"])
+        self.mobile_number.fill(user["mobile_number"])
 
     def submit(self) -> None:
         self.create_account_button.click()

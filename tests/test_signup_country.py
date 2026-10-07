@@ -6,7 +6,8 @@ from playwright.sync_api import Page, expect
 
 from api.account_api import AccountApi
 from pages.checkout_page import CheckoutPage
-from pages.signup_page import SignupPage
+from pages.login_page import LoginPage
+from pages.register_page import RegisterPage
 
 COUNTRIES = [
     "India", "United States", "Canada", "Australia",
@@ -29,17 +30,19 @@ def test_signup_country_selection(
     allure.dynamic.title(f"Rejestracja z krajem: {country}")
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
-    signup = SignupPage(page)
+    login = LoginPage(page)
+    register = RegisterPage(page)
     country_select = page.locator("select[data-qa='country']")
 
     with allure.step(f"Rejestracja przez UI z krajem {country}"):
-        signup.open_from_home()
-        signup.start_signup(user["name"], user["email"])
-        signup.fill_account_form(user)
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
+        register.fill_account_form(user)
         expect(country_select).to_have_value(country)
-        signup.submit()
+        register.submit()
         expect(page).to_have_url("https://automationexercise.com/account_created")
-        signup.click_continue()
+        register.click_continue()
 
     with allure.step("Weryfikacja kraju przez API"):
         result = account_api.get_by_email(user["email"])
@@ -62,9 +65,10 @@ def test_signup_country_default_and_options(
     user = user_data()
 
     with allure.step("Otwórz formularz /signup"):
-        signup = SignupPage(page)
-        signup.open_from_home()
-        signup.start_signup(user["name"], user["email"])
+        login = LoginPage(page)
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
 
     with allure.step("Zweryfikuj domyślną wartość i pełną listę opcji"):
         country_select = page.locator("select[data-qa='country']")

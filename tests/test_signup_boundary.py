@@ -6,7 +6,8 @@ from playwright.sync_api import Page, expect
 
 from api.account_api import AccountApi, REQUEST_TO_RESPONSE_FIELD_MAP
 from pages.checkout_page import CheckoutPage
-from pages.signup_page import SignupPage
+from pages.login_page import LoginPage
+from pages.register_page import RegisterPage
 
 # ============================================================================
 # GRUPA A — wartości graniczne POPRAWNE. Każda zweryfikowana na żywo przed
@@ -61,14 +62,16 @@ def test_signup_boundary_valid(
     allure.dynamic.title(f"Graniczna wartość poprawna: {case_id}")
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
-    signup = SignupPage(page)
+    login = LoginPage(page)
+    register = RegisterPage(page)
     with allure.step("Rejestracja przez UI"):
-        signup.open_from_home()
-        signup.start_signup(user["name"], user["email"])
-        signup.fill_account_form(user)
-        signup.submit()
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
+        register.fill_account_form(user)
+        register.submit()
         expect(page).to_have_url("https://automationexercise.com/account_created")
-        signup.click_continue()
+        register.click_continue()
 
     if "password" in overrides:
         with allure.step("Weryfikacja hasła przez verifyLogin (password nie jest w GET)"):
@@ -125,14 +128,16 @@ def test_signup_boundary_required_field_empty(
     allure.dynamic.title(f"Puste wymagane pole '{field_id}' blokuje wysłanie formularza")
     user = user_data()
 
-    signup = SignupPage(page)
-    signup.open_from_home()
-    signup.start_signup(user["name"], user["email"])
-    signup.fill_account_form(user)
+    login = LoginPage(page)
+    register = RegisterPage(page)
+    login.goto("")
+    login.nav_login.click()
+    login.start_registration(user["name"], user["email"])
+    register.fill_account_form(user)
     page.locator(f"#{field_id}").fill("")
 
     with allure.step(f"Próba wysłania formularza z pustym polem '{field_id}'"):
-        signup.submit()
+        register.submit()
         expect(page).to_have_url("https://automationexercise.com/signup")
         validation_message = page.locator(f"#{field_id}").evaluate("el => el.validationMessage")
         assert validation_message != "", "Oczekiwano natywnego komunikatu walidacji HTML5"
@@ -178,10 +183,12 @@ def test_signup_boundary_required_field_whitespace_only(
     user = user_data()
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
-    signup = SignupPage(page)
-    signup.open_from_home()
-    signup.start_signup(user["name"], user["email"])
-    signup.fill_account_form(user)
+    login = LoginPage(page)
+    register = RegisterPage(page)
+    login.goto("")
+    login.nav_login.click()
+    login.start_registration(user["name"], user["email"])
+    register.fill_account_form(user)
     page.locator(f"#{field_id}").fill("   ")
 
     allure.attach(
@@ -189,7 +196,7 @@ def test_signup_boundary_required_field_whitespace_only(
         name=f"field-{field_id}-outerHTML",
         attachment_type=allure.attachment_type.HTML,
     )
-    signup.submit()
+    register.submit()
     allure.attach(
         page.screenshot(full_page=True),
         name="after-submit-screenshot",
@@ -264,17 +271,19 @@ def test_signup_boundary_invalid_format(
     user = user_data(**overrides)
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
-    signup = SignupPage(page)
-    signup.open_from_home()
-    signup.start_signup(user["name"], user["email"])
-    signup.fill_account_form(user)
+    login = LoginPage(page)
+    register = RegisterPage(page)
+    login.goto("")
+    login.nav_login.click()
+    login.start_registration(user["name"], user["email"])
+    register.fill_account_form(user)
 
     allure.attach(
         page.locator(f"#{field_id}").evaluate("el => el.outerHTML"),
         name=f"field-{field_id}-outerHTML",
         attachment_type=allure.attachment_type.HTML,
     )
-    signup.submit()
+    register.submit()
     allure.attach(
         page.screenshot(full_page=True),
         name="after-submit-screenshot",
@@ -349,11 +358,13 @@ def test_signup_boundary_invalid_date(
     user = user_data(**overrides)
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
-    signup = SignupPage(page)
-    signup.open_from_home()
-    signup.start_signup(user["name"], user["email"])
-    signup.fill_account_form(user)
-    signup.submit()
+    login = LoginPage(page)
+    register = RegisterPage(page)
+    login.goto("")
+    login.nav_login.click()
+    login.start_registration(user["name"], user["email"])
+    register.fill_account_form(user)
+    register.submit()
     allure.attach(
         page.screenshot(full_page=True),
         name="after-submit-screenshot",
@@ -385,14 +396,16 @@ def test_signup_xss_name_is_escaped_not_executed(
     dialogs: list[str] = []
     page.on("dialog", lambda d: (dialogs.append(d.message), d.dismiss()))
 
-    signup = SignupPage(page)
+    login = LoginPage(page)
+    register = RegisterPage(page)
     with allure.step("Rejestracja z payloadem XSS w polu name"):
-        signup.open_from_home()
-        signup.start_signup(user["name"], user["email"])
-        signup.fill_account_form(user)
-        signup.submit()
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
+        register.fill_account_form(user)
+        register.submit()
         expect(page).to_have_url("https://automationexercise.com/account_created")
-        signup.click_continue()
+        register.click_continue()
 
     with allure.step("Weryfikacja: tekst wyświetlony dosłownie, żaden dialog się nie otworzył"):
         logged_in = page.locator("text=Logged in as")
@@ -415,12 +428,14 @@ def test_signup_sqli_like_name_saved_literally(
     user = user_data(name=payload)
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
-    signup = SignupPage(page)
+    login = LoginPage(page)
+    register = RegisterPage(page)
     with allure.step("Rejestracja z payloadem SQLi-podobnym w polu name"):
-        signup.open_from_home()
-        signup.start_signup(user["name"], user["email"])
-        signup.fill_account_form(user)
-        signup.submit()
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
+        register.fill_account_form(user)
+        register.submit()
         expect(page).to_have_url("https://automationexercise.com/account_created")
 
     with allure.step("Weryfikacja: wartość zapisana dosłownie przez API"):

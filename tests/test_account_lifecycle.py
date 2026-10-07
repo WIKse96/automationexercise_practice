@@ -6,7 +6,7 @@ from playwright.sync_api import Page, expect
 
 from api.account_api import AccountApi, REQUEST_TO_RESPONSE_FIELD_MAP
 from pages.login_page import LoginPage
-from pages.signup_page import SignupPage
+from pages.register_page import RegisterPage
 
 
 @allure.feature("Account")
@@ -25,20 +25,22 @@ def test_create_and_delete_user_ui(
     # krokiem usuwania, konto i tak zostanie skasowane w teardownie.
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
-    signup = SignupPage(page)
+    login = LoginPage(page)
+    register = RegisterPage(page)
 
     with allure.step("Rejestracja przez UI z kompletem danych"):
-        signup.open_from_home()
-        signup.start_signup(user["name"], user["email"])
-        signup.fill_account_form(user)
-        signup.submit()
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
+        register.fill_account_form(user)
+        register.submit()
 
     with allure.step("Weryfikacja strony /account_created"):
         expect(page).to_have_url("https://automationexercise.com/account_created")
         # DOM ma "Account Created!" — "ACCOUNT CREATED!" to tylko CSS text-transform,
         # to_have_text() porównuje surowy textContent, nie tekst po renderowaniu.
-        expect(signup.account_created_header).to_have_text("Account Created!")
-        signup.click_continue()
+        expect(register.account_created_header).to_have_text("Account Created!")
+        register.click_continue()
 
     with allure.step("Weryfikacja zalogowania jako wiktor"):
         expect(page.locator("text=Logged in as wiktor")).to_be_visible()
@@ -58,14 +60,13 @@ def test_create_and_delete_user_ui(
     with allure.step("Usunięcie konta przez UI"):
         page.goto("https://automationexercise.com/delete_account")
         expect(page.locator("h2:has-text('ACCOUNT DELETED!')")).to_be_visible()
-        signup.click_continue()
+        register.click_continue()
 
     with allure.step("Weryfikacja przez API, że konto nie istnieje"):
         result_after = account_api.get_by_email(user["email"])
         assert result_after["responseCode"] == 404, result_after
 
     with allure.step("Próba logowania usuniętymi danymi -> komunikat błędu"):
-        login = LoginPage(page)
         login.open()
         login.login(user["email"], user["password"])
         expect(login.login_error).to_be_visible()
