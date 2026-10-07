@@ -20,7 +20,7 @@ from pages.register_page import RegisterPage
     "zablokowany e-mail) i pełną listę krajów w selekcie."
 )
 def test_register_e2e(
-    page: Page, register_user_name: str, email_factory: Callable[[], str]
+    page: Page, register_user_name: str, email_factory: Callable[[], str], base_url: str
 ) -> None:
     email = email_factory()
     login = LoginPage(page)
@@ -28,7 +28,7 @@ def test_register_e2e(
     with allure.step("Otwórz stronę główną i przejdź do Signup / Login"):
         login.goto("")
         login.go_to_login()
-        expect(page).to_have_url("https://automationexercise.com/login")
+        expect(page).to_have_url(f"{base_url}login")
 
     with allure.step("Zweryfikuj elementy formularzy na /login"):
         expect(login.heading_login).to_be_visible()
@@ -49,7 +49,7 @@ def test_register_e2e(
 
     with allure.step("Wypełnij formularz startowy rejestracji (imię + e-mail) i wyślij"):
         login.start_registration(register_user_name, email)
-        expect(page).to_have_url("https://automationexercise.com/signup")
+        expect(page).to_have_url(f"{base_url}signup")
 
     register = RegisterPage(page)
 

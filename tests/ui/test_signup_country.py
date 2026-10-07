@@ -24,6 +24,7 @@ def test_signup_country_selection(
     account_api: AccountApi,
     user_data: Callable[..., dict],
     ui_user_cleanup: list,
+    base_url: str,
     country: str,
 ) -> None:
     user = user_data(country=country)
@@ -41,7 +42,7 @@ def test_signup_country_selection(
         register.fill_account_form(user)
         expect(country_select).to_have_value(country)
         register.submit()
-        expect(page).to_have_url("https://automationexercise.com/account_created")
+        expect(page).to_have_url(f"{base_url}account_created")
         register.click_continue()
 
     with allure.step("Weryfikacja kraju przez API"):

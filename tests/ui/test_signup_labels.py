@@ -51,8 +51,8 @@ FIELDS = [
 
 
 @pytest.fixture(scope="function")
-def signup_page(page: Page) -> Page:
-    page.goto("https://automationexercise.com/")
+def signup_page(page: Page, base_url: str) -> Page:
+    page.goto("")
 
     try:
         page.locator(".fc-cta-do-not-consent").click(timeout=4000)
@@ -60,14 +60,14 @@ def signup_page(page: Page) -> Page:
         pass  # baner nie pojawił się lub nie ma opcji odrzucenia — kontynuujemy
 
     page.locator("xpath=//a[normalize-space()='Signup / Login']").click()
-    expect(page).to_have_url("https://automationexercise.com/login")
+    expect(page).to_have_url(f"{base_url}login")
 
     email = f"testwik+{int(time.time() * 1000)}@gmail.com"
     page.locator('[data-qa="signup-name"]').fill("wiktor")
     page.locator('[data-qa="signup-email"]').fill(email)
     page.locator('[data-qa="signup-button"]').click()
 
-    expect(page).to_have_url("https://automationexercise.com/signup")
+    expect(page).to_have_url(f"{base_url}signup")
 
     return page
 

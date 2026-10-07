@@ -29,7 +29,7 @@ def browser_type_launch_args(browser_type_launch_args, pytestconfig):
 
 
 @pytest.fixture(scope="session")
-def _fc_consent(playwright):
+def _fc_consent(playwright, base_url):
     """Jednorazowo generuje plik ze stanem zgody FC cookie (działa w CI bez pliku)."""
     if _CONSENT_STATE.exists():
         return
@@ -37,7 +37,7 @@ def _fc_consent(playwright):
     browser = playwright.chromium.launch(headless=True)
     ctx = browser.new_context()
     page = ctx.new_page()
-    page.goto("https://automationexercise.com")
+    page.goto(base_url)
     try:
         page.locator(".fc-cta-consent").click(timeout=8000)
         page.wait_for_timeout(500)
@@ -65,11 +65,6 @@ def browser_context_args(browser_context_args, _fc_consent, base_url):
 @pytest.fixture(scope="session")
 def base_url() -> str:
     return os.getenv("BASE_URL", "https://automationexercise.com").rstrip("/") + "/"
-
-
-@pytest.fixture(scope="session")
-def api_base_url() -> str:
-    return os.getenv("API_BASE_URL", "https://automationexercise.com/api")
 
 
 @pytest.fixture(scope="session")
