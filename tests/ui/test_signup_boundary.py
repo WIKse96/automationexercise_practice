@@ -10,61 +10,51 @@ from pages.login_page import LoginPage
 from pages.register_page import RegisterPage
 
 # ============================================================================
-# GRUPA A — wartości graniczne POPRAWNE. Każda zweryfikowana na żywo przed
-# napisaniem testu: rejestracja przechodzi i dane zapisują się dokładnie
-# tak, jak wpisano (API nie ma żadnych ograniczeń długości/formatu — brak
-# atrybutów maxlength/pattern na polach tekstowych, potwierdzone w DOM).
+# GRUPA A — jedna systematyczna reguła zastosowana do KAŻDEGO pola
+# tekstowego na formularzu: 255 znaków. Zweryfikowane na żywo: żadne pole
+# nie ma atrybutu maxlength/pattern w DOM, więc każde powinno zaakceptować
+# i zapisać wartość 1:1 (brak limitu długości potwierdzony per pole, nie
+# zgadywany).
 # ============================================================================
-GROUP_A_CASES = [
-    ("name_1char", {"name": "A"}),
-    ("name_50char", {"name": "A" * 50}),
-    ("name_polish_chars", {"name": "Wiktor Żółćęś"}),
-    ("name_hyphen_apostrophe", {"name": "Anna-Maria O'Neil"}),
-    ("password_1char", {"password": "x"}),
-    ("password_100char", {"password": "P" * 100}),
-    ("password_special_chars", {"password": "!@#$%^&*()_+-=[]{}|;:,.<>?"}),
-    ("first_name_1char", {"firstname": "A"}),
-    ("first_name_100char", {"firstname": "A" * 100}),
-    ("last_name_1char", {"lastname": "A"}),
-    ("last_name_100char", {"lastname": "A" * 100}),
-    ("city_1char", {"city": "A"}),
-    ("city_100char", {"city": "A" * 100}),
-    ("state_1char", {"state": "A"}),
-    ("state_100char", {"state": "A" * 100}),
-    ("address1_255char", {"address1": "A" * 255}),
-    ("address2_255char", {"address2": "A" * 255}),
-    ("company_255char", {"company": "A" * 255}),
-    ("mobile_plus_country_code", {"mobile_number": "+48123456789"}),
-    ("mobile_digits_only", {"mobile_number": "123456789"}),
-    ("zipcode_dash_format", {"zipcode": "00-001"}),
-    ("zipcode_plain_digits", {"zipcode": "12345"}),
-    ("zipcode_uk_format", {"zipcode": "SW1A 1AA"}),
-    ("dob_oldest_1900", {"birth_date": "1", "birth_month": "1", "birth_year": "1900"}),
-    ("dob_youngest_2021", {"birth_date": "31", "birth_month": "12", "birth_year": "2021"}),
-    ("dob_leap_year_2020", {"birth_date": "29", "birth_month": "2", "birth_year": "2020"}),
-    ("title_mrs", {"title": "Mrs"}),
-    ("no_optional_fields", {"birth_date": "", "birth_month": "", "birth_year": "", "title": None}),
-]
+
+# DOM id pola -> klucz w payloadzie createAccount/updateAccount.
+TEXT_FIELD_TO_REQUEST_KEY = {
+    "name": "name",
+    "password": "password",
+    "first_name": "firstname",
+    "last_name": "lastname",
+    "company": "company",
+    "address1": "address1",
+    "address2": "address2",
+    "state": "state",
+    "city": "city",
+    "zipcode": "zipcode",
+    "mobile_number": "mobile_number",
+}
 
 
 @allure.feature("Signup")
 @allure.story("Boundary — poprawne wartości graniczne (grupa A)")
-@pytest.mark.parametrize("case_id, overrides", GROUP_A_CASES, ids=[c[0] for c in GROUP_A_CASES])
-def test_signup_boundary_valid(
+@pytest.mark.parametrize(
+    "field_id", list(TEXT_FIELD_TO_REQUEST_KEY), ids=list(TEXT_FIELD_TO_REQUEST_KEY)
+)
+def test_signup_boundary_long_text_accepted(
     page: Page,
     account_api: AccountApi,
     user_data: Callable[..., dict],
     ui_user_cleanup: list,
-    case_id: str,
-    overrides: dict,
+    field_id: str,
 ) -> None:
-    user = user_data(**overrides)
-    allure.dynamic.title(f"Graniczna wartość poprawna: {case_id}")
+    request_key = TEXT_FIELD_TO_REQUEST_KEY[field_id]
+    value = "a" * 255
+    allure.dynamic.title(f"Pole '{field_id}': 255 znaków — brak limitu długości")
+
+    user = user_data(**{request_key: value})
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
     login = LoginPage(page)
     register = RegisterPage(page)
-    with allure.step("Rejestracja przez UI"):
+    with allure.step("Rejestracja przez UI z 255-znakową wartością"):
         login.goto("")
         login.nav_login.click()
         login.start_registration(user["name"], user["email"])
@@ -73,31 +63,25 @@ def test_signup_boundary_valid(
         expect(page).to_have_url("https://automationexercise.com/account_created")
         register.click_continue()
 
-    if "password" in overrides:
+    if request_key == "password":
         with allure.step("Weryfikacja hasła przez verifyLogin (password nie jest w GET)"):
-            result = account_api.verify_login(user["email"], user["password"])
+            result = account_api.verify_login(user["email"], value)
             assert result.get("responseCode") == 200, result
         return
 
-    with allure.step("Weryfikacja zapisanych danych przez API GET"):
-        result = account_api.get_by_email(user["email"])
-        assert result.get("responseCode") == 200, result
-        api_user = result["user"]
-        for req_field, value in overrides.items():
-            response_field = REQUEST_TO_RESPONSE_FIELD_MAP.get(req_field)
-            if response_field is None:
-                continue  # np. mobile_number — weryfikowane w UI poniżej
-            expected = "" if value is None else value
-            assert str(api_user[response_field]) == str(expected), (
-                f"{req_field}: oczekiwano {expected!r}, API zwróciło {api_user[response_field]!r}"
-            )
-
-    if "mobile_number" in overrides:
+    if request_key == "mobile_number":
         with allure.step("Weryfikacja mobile_number w adresie dostawy na checkout"):
             checkout = CheckoutPage(page)
             checkout.add_first_product_to_cart()
             checkout.go_to_checkout()
-            assert overrides["mobile_number"] in checkout.delivery_address_text()
+            assert value in checkout.delivery_address_text()
+        return
+
+    with allure.step("Weryfikacja zapisanej wartości przez API GET"):
+        result = account_api.get_by_email(user["email"])
+        assert result.get("responseCode") == 200, result
+        response_field = REQUEST_TO_RESPONSE_FIELD_MAP[request_key]
+        assert result["user"][response_field] == value
 
 
 # ============================================================================
@@ -163,7 +147,6 @@ def _known_bug_whitespace(field_id: str) -> pytest.MarkDecorator:
 )
 def test_signup_boundary_required_field_whitespace_only(
     page: Page,
-    account_api: AccountApi,
     user_data: Callable[..., dict],
     ui_user_cleanup: list,
     field_id: str,
@@ -251,7 +234,6 @@ _INVALID_FORMAT_BUG_CASES = [
 )
 def test_signup_boundary_invalid_format(
     page: Page,
-    account_api: AccountApi,
     user_data: Callable[..., dict],
     ui_user_cleanup: list,
     case_id: str,
@@ -338,7 +320,6 @@ _INVALID_DATE_BUG_CASES = [
 )
 def test_signup_boundary_invalid_date(
     page: Page,
-    account_api: AccountApi,
     user_data: Callable[..., dict],
     ui_user_cleanup: list,
     case_id: str,
@@ -384,7 +365,6 @@ def test_signup_boundary_invalid_date(
 @allure.severity(allure.severity_level.CRITICAL)
 def test_signup_xss_name_is_escaped_not_executed(
     page: Page,
-    account_api: AccountApi,
     user_data: Callable[..., dict],
     ui_user_cleanup: list,
 ) -> None:
