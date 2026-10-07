@@ -161,21 +161,6 @@ def user_data(unique_email: str) -> Callable[..., dict]:
 
 
 @pytest.fixture()
-def api_user(account_api: AccountApi, user_data: Callable[..., dict]) -> dict:
-    """Tworzy użytkownika przez API i ZAWSZE usuwa go w teardownie — nawet gdy
-    test padnie. Błąd usuwania ignorujemy (konto mogło już zostać skasowane
-    w trakcie testu, np. w scenariuszach lifecycle)."""
-    user = user_data()
-    result = account_api.create(user)
-    assert result.get("responseCode") == 201, f"Nie udało się utworzyć usera: {result}"
-    yield user
-    try:
-        account_api.delete(user["email"], user["password"])
-    except Exception:
-        pass
-
-
-@pytest.fixture()
 def ui_user_cleanup(account_api: AccountApi):
     """Rejestr e-maili/haseł kont założonych przez UI w teście — każdy wpis
     zostaje usunięty przez API po teście, niezależnie od jego wyniku."""
