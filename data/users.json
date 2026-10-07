@@ -1,0 +1,27 @@
+{
+  "valid_user": {
+    "name": "Test User",
+    "email": "testuser@example.com",
+    "password": "TestPass123!"
+  },
+  "invalid_user": {
+    "email": "notexisting@example.com",
+    "password": "wrongpassword"
+  },
+  "new_user_template": {
+    "title": "Mr",
+    "birth_date": "15",
+    "birth_month": "June",
+    "birth_year": "1990",
+    "firstname": "John",
+    "lastname": "Doe",
+    "company": "TestCo",
+    "address1": "123 Main Street",
+    "address2": "Apt 4B",
+    "country": "United States",
+    "zipcode": "10001",
+    "state": "New York",
+    "city": "New York",
+    "mobile_number": "5551234567"
+  }
+}
