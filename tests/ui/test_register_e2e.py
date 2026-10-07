@@ -7,6 +7,7 @@ from pages.login_page import LoginPage
 from pages.register_page import RegisterPage
 
 
+@pytest.mark.smoke
 @allure.epic("Automation Exercise")
 @allure.feature("Rejestracja użytkownika")
 @allure.story("E2E – start rejestracji")

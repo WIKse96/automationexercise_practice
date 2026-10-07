@@ -23,7 +23,7 @@ jobs:
         run: playwright install --with-deps chromium
 
       - name: Uruchom testy
-        run: pytest -n 4 --alluredir=reports/allure_results
+        run: pytest --alluredir=reports/allure_results
 
       - name: Zapisz raport jako artefakt (nawet jeśli testy padły)
         if: always()
