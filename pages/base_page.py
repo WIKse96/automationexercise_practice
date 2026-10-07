@@ -7,7 +7,7 @@ class BasePage:
 
     # --- Navigation ---
     def goto(self, path: str = "") -> None:
-        self.page.goto(f"https://automationexercise.com/{path.lstrip('/')}")
+        self.page.goto(path.lstrip("/"))
 
     def get_title(self) -> str:
         return self.page.title()
@@ -54,6 +54,10 @@ class BasePage:
     @property
     def nav_logout(self) -> Locator:
         return self.page.locator("a[href='/logout']")
+
+    @property
+    def logged_in_as(self) -> Locator:
+        return self.page.locator('a:has-text("Logged in as") b')
 
     @property
     def nav_contact(self) -> Locator:

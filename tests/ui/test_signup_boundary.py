@@ -1,5 +1,3 @@
-from typing import Callable
-
 import allure
 import pytest
 from playwright.sync_api import Page, expect
@@ -9,16 +7,131 @@ from pages.checkout_page import CheckoutPage
 from pages.login_page import LoginPage
 from pages.register_page import RegisterPage
 
-# ============================================================================
-# GRUPA A — jedna systematyczna reguła zastosowana do KAŻDEGO pola
-# tekstowego na formularzu: 255 znaków. Zweryfikowane na żywo: żadne pole
-# nie ma atrybutu maxlength/pattern w DOM, więc każde powinno zaakceptować
-# i zapisać wartość 1:1 (brak limitu długości potwierdzony per pole, nie
-# zgadywany).
-# ============================================================================
 
-# DOM id pola -> klucz w payloadzie createAccount/updateAccount.
-TEXT_FIELD_TO_REQUEST_KEY = {
+@allure.epic("Automation Exercise")
+@allure.feature("Rejestracja użytkownika")
+@allure.story("Walidacja — puste wymagane pole")
+@allure.severity(allure.severity_level.NORMAL)
+@allure.title("Pusty formularz /signup blokuje wysłanie (natywna walidacja HTML5)")
+@allure.description(
+    "Sprawdza, że próba wysłania formularza Account Information bez wypełnienia "
+    "żadnego pola nie przechodzi — przeglądarka blokuje submit przez natywną "
+    "walidację HTML5 (atrybut required). Weryfikacja przez pseudo-klasę CSS "
+    "':invalid' na polu password (pierwsze realnie puste wymagane pole — "
+    "name/email są już wypełnione z kroku startu rejestracji), nie przez tekst "
+    "komunikatu walidacji, bo ten zależy od języka przeglądarki."
+)
+def test_signup_empty_form_shows_validation_errors(
+    page: Page,
+    user_data,
+    base_url: str,
+) -> None:
+    user = user_data()
+    login = LoginPage(page)
+    register = RegisterPage(page)
+
+    with allure.step("Rozpocznij rejestrację — dotrzyj do /signup"):
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
+
+    with allure.step("Wyślij pusty formularz Account Information"):
+        register.submit()
+
+    with allure.step("Zweryfikuj, że submit nie przeszedł i pole jest :invalid"):
+        expect(page).to_have_url(f"{base_url}signup")
+        is_invalid = register.password.evaluate("el => el.matches(':invalid')")
+        assert is_invalid is True
+
+
+@allure.epic("Automation Exercise")
+@allure.feature("Rejestracja użytkownika")
+@allure.story("Walidacja — puste wymagane pole")
+@allure.severity(allure.severity_level.NORMAL)
+@allure.title("Wypełnienie TYLKO pól opcjonalnych nie przechodzi — błąd nadal na password")
+@allure.description(
+    "Pola opcjonalne (title, data urodzenia, newsletter, optin, company, "
+    "address2) wypełnione poprawnymi wartościami nie mogą zastąpić pól "
+    "wymaganych. Formularz nadal blokuje submit na pierwszym pustym "
+    "wymaganym polu (password)."
+)
+def test_signup_only_optional_fields_filled_still_blocks_on_required(
+    page: Page, user_data, base_url: str
+) -> None:
+    user = user_data(newsletter=True, optin=True)
+    login = LoginPage(page)
+    register = RegisterPage(page)
+
+    with allure.step("Dotrzyj do /signup"):
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
+
+    with allure.step("Wypełnij TYLKO pola opcjonalne, zostaw wymagane puste"):
+        register.title_mrs.check()
+        register.days_select.select_option(user["birth_date"])
+        register.months_select.select_option(user["birth_month"])
+        register.years_select.select_option(user["birth_year"])
+        register.newsletter_checkbox.check()
+        register.optin_checkbox.check()
+        register.company.fill(user["company"])
+        register.address2.fill(user["address2"])
+        register.submit()
+
+    with allure.step("Formularz nie przechodzi — password nadal :invalid"):
+        expect(page).to_have_url(f"{base_url}signup")
+        assert register.password.evaluate("el => el.matches(':invalid')") is True
+
+
+SHORT_VALUES = ["a", "aa", "2", "22", "a22", "a2@", " "]
+
+# DOM id (property w RegisterPage) -> required pola na /signup, które realnie
+# da się przetestować (email jest disabled, country/title/dob nie są text inputami).
+REQUIRED_FIELD_PROPERTIES = {
+    "name": "name_field",
+    "password": "password",
+    "first_name": "first_name",
+    "last_name": "last_name",
+    "address1": "address1",
+    "state": "state",
+    "city": "city",
+    "zipcode": "zipcode",
+    "mobile_number": "mobile_number",
+}
+
+
+@allure.epic("Automation Exercise")
+@allure.feature("Rejestracja użytkownika")
+@allure.story("Walidacja — wymagane pola")
+@allure.severity(allure.severity_level.NORMAL)
+@pytest.mark.parametrize(
+    "field_id", list(REQUIRED_FIELD_PROPERTIES), ids=list(REQUIRED_FIELD_PROPERTIES)
+)
+@pytest.mark.parametrize("value", SHORT_VALUES, ids=[repr(v) for v in SHORT_VALUES])
+def test_signup_required_field_any_short_value_satisfies_required(
+    page: Page, user_data, base_url: str, field_id: str, value: str
+) -> None:
+    allure.dynamic.title(f"{field_id}={value!r} wystarcza by przejść required")
+    user = user_data()
+    login = LoginPage(page)
+    register = RegisterPage(page)
+
+    with allure.step("Dotrzyj do /signup"):
+        login.goto("")
+        login.nav_login.click()
+        login.start_registration(user["name"], user["email"])
+
+    with allure.step(f"Wypełnij {field_id}={value!r}"):
+        field = getattr(register, REQUIRED_FIELD_PROPERTIES[field_id])
+        field.fill(value)
+
+    with allure.step(f"{field_id} przestaje być :invalid"):
+        assert field.evaluate("el => el.matches(':invalid')") is False
+
+
+# Jak wyżej + pola opcjonalne (company, address2) — tu testujemy nie "required",
+# tylko brak limitu długości, więc opcjonalność pola nie ma znaczenia.
+ALL_TEXT_FIELD_TO_REQUEST_KEY = {
     "name": "name",
     "password": "password",
     "first_name": "firstname",
@@ -33,34 +146,39 @@ TEXT_FIELD_TO_REQUEST_KEY = {
 }
 
 
-@allure.feature("Signup")
-@allure.story("Boundary — poprawne wartości graniczne (grupa A)")
+@allure.epic("Automation Exercise")
+@allure.feature("Rejestracja użytkownika")
+@allure.story("Walidacja — wymagane pola")
+@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.parametrize(
-    "field_id", list(TEXT_FIELD_TO_REQUEST_KEY), ids=list(TEXT_FIELD_TO_REQUEST_KEY)
+    "field_id", list(ALL_TEXT_FIELD_TO_REQUEST_KEY), ids=list(ALL_TEXT_FIELD_TO_REQUEST_KEY)
 )
-def test_signup_boundary_long_text_accepted(
+@pytest.mark.parametrize("length", [255, 256], ids=["255_znakow", "256_znakow"])
+def test_signup_field_long_value_accepted(
     page: Page,
     account_api: AccountApi,
-    user_data: Callable[..., dict],
+    user_data,
     ui_user_cleanup: list,
+    base_url: str,
     field_id: str,
+    length: int,
 ) -> None:
-    request_key = TEXT_FIELD_TO_REQUEST_KEY[field_id]
-    value = "a" * 255
-    allure.dynamic.title(f"Pole '{field_id}': 255 znaków — brak limitu długości")
+    request_key = ALL_TEXT_FIELD_TO_REQUEST_KEY[field_id]
+    value = "a" * length
+    allure.dynamic.title(f"{field_id} o długości {length} znaków — zapisuje się poprawnie")
 
     user = user_data(**{request_key: value})
     ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
 
     login = LoginPage(page)
     register = RegisterPage(page)
-    with allure.step("Rejestracja przez UI z 255-znakową wartością"):
+    with allure.step(f"Pełna rejestracja z {field_id}={length} znaków"):
         login.goto("")
         login.nav_login.click()
         login.start_registration(user["name"], user["email"])
         register.fill_account_form(user)
         register.submit()
-        expect(page).to_have_url("https://automationexercise.com/account_created")
+        expect(page).to_have_url(f"{base_url}account_created")
         register.click_continue()
 
     if request_key == "password":
@@ -82,343 +200,3 @@ def test_signup_boundary_long_text_accepted(
         assert result.get("responseCode") == 200, result
         response_field = REQUEST_TO_RESPONSE_FIELD_MAP[request_key]
         assert result["user"][response_field] == value
-
-
-# ============================================================================
-# GRUPA B — wartości NIEPOPRAWNE.
-# Zweryfikowane na żywo: formularz ma TYLKO natywną walidację HTML5
-# `required` (brak pustego pola). Brak jakiegokolwiek ograniczenia
-# maxlength/pattern — stąd prawie wszystkie "niepoprawne" dane są w
-# rzeczywistości AKCEPTOWANE przez stronę = potwierdzony bug, oznaczony
-# strict xfail z pełnym opisem w Allure (tak jak bug Zipcode w
-# test_signup_labels.py).
-# ============================================================================
-
-# Pola, które da się realnie wyczyścić przez UI (email jest disabled,
-# country to <select> bez pustej opcji — zawsze ma wybraną wartość domyślną,
-# więc obu nie da się sprawdzić jako "puste" przez normalną interakcję usera).
-REQUIRED_TEXT_FIELD_IDS = [
-    "name", "password", "first_name", "last_name",
-    "address1", "state", "city", "zipcode", "mobile_number",
-]
-
-
-@allure.feature("Signup")
-@allure.story("Boundary — niepoprawne wartości odrzucone (grupa B)")
-@pytest.mark.parametrize("field_id", REQUIRED_TEXT_FIELD_IDS, ids=REQUIRED_TEXT_FIELD_IDS)
-def test_signup_boundary_required_field_empty(
-    page: Page, user_data: Callable[..., dict], field_id: str
-) -> None:
-    allure.dynamic.title(f"Puste wymagane pole '{field_id}' blokuje wysłanie formularza")
-    user = user_data()
-
-    login = LoginPage(page)
-    register = RegisterPage(page)
-    login.goto("")
-    login.nav_login.click()
-    login.start_registration(user["name"], user["email"])
-    register.fill_account_form(user)
-    page.locator(f"#{field_id}").fill("")
-
-    with allure.step(f"Próba wysłania formularza z pustym polem '{field_id}'"):
-        register.submit()
-        expect(page).to_have_url("https://automationexercise.com/signup")
-        validation_message = page.locator(f"#{field_id}").evaluate("el => el.validationMessage")
-        assert validation_message != "", "Oczekiwano natywnego komunikatu walidacji HTML5"
-
-
-def _known_bug_whitespace(field_id: str) -> pytest.MarkDecorator:
-    return pytest.mark.xfail(
-        reason=(
-            f"KNOWN BUG: wymagane pole '{field_id}' wypełnione samymi spacjami "
-            "przechodzi natywną walidację HTML5 required (spacje liczą się jako "
-            "'niepuste') i serwer NIE przycina/odrzuca takiej wartości — konto "
-            "rejestruje się z polem zawierającym same spacje."
-        ),
-        strict=True,
-    )
-
-
-@allure.feature("Signup")
-@allure.story("Boundary — niepoprawne wartości odrzucone (grupa B)")
-@pytest.mark.parametrize(
-    "field_id",
-    [pytest.param(f, id=f, marks=_known_bug_whitespace(f)) for f in REQUIRED_TEXT_FIELD_IDS],
-)
-def test_signup_boundary_required_field_whitespace_only(
-    page: Page,
-    user_data: Callable[..., dict],
-    ui_user_cleanup: list,
-    field_id: str,
-) -> None:
-    allure.dynamic.tag("known-bug")
-    allure.dynamic.severity(allure.severity_level.MINOR)
-    allure.dynamic.issue(
-        "BUG-WHITESPACE-REQUIRED", f"Pole '{field_id}' akceptuje same spacje"
-    )
-    allure.dynamic.title(f"Wymagane pole '{field_id}' wypełnione samymi spacjami")
-    allure.dynamic.description(
-        f"Oczekiwane: formularz odrzuca pole '{field_id}' zawierające tylko spacje "
-        "(dane bez realnej treści).\n"
-        "Faktyczne: konto rejestruje się poprawnie, pole zapisane jako '   '."
-    )
-
-    user = user_data()
-    ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
-
-    login = LoginPage(page)
-    register = RegisterPage(page)
-    login.goto("")
-    login.nav_login.click()
-    login.start_registration(user["name"], user["email"])
-    register.fill_account_form(user)
-    page.locator(f"#{field_id}").fill("   ")
-
-    allure.attach(
-        page.locator(f"#{field_id}").evaluate("el => el.outerHTML"),
-        name=f"field-{field_id}-outerHTML",
-        attachment_type=allure.attachment_type.HTML,
-    )
-    register.submit()
-    allure.attach(
-        page.screenshot(full_page=True),
-        name="after-submit-screenshot",
-        attachment_type=allure.attachment_type.PNG,
-    )
-    # Celowy xfail: oczekujemy, że formularz NIE przejdzie (zostaniemy na /signup).
-    expect(page).not_to_have_url("https://automationexercise.com/account_created")
-
-
-_INVALID_FORMAT_BUG_CASES = [
-    (
-        "mobile_letters",
-        {"mobile_number": "abcdef"},
-        "mobile_number",
-        "pole mobile_number akceptuje litery zamiast cyfr",
-    ),
-    (
-        "mobile_too_short",
-        {"mobile_number": "12"},
-        "mobile_number",
-        "pole mobile_number akceptuje 2-cyfrowy numer",
-    ),
-    (
-        "zipcode_symbols",
-        {"zipcode": "abc!@#"},
-        "zipcode",
-        "pole zipcode akceptuje dowolne znaki specjalne",
-    ),
-    (
-        "name_1000_chars",
-        {"name": "A" * 1000},
-        "name",
-        "pole name akceptuje 1000 znaków bez ograniczenia",
-    ),
-]
-
-
-@allure.feature("Signup")
-@allure.story("Boundary — niepoprawne wartości odrzucone (grupa B)")
-@pytest.mark.parametrize(
-    "case_id, overrides, field_id, bug_desc",
-    [
-        pytest.param(
-            cid, ov, fid, desc, id=cid,
-            marks=pytest.mark.xfail(
-                reason=f"KNOWN BUG: {desc} — brak walidacji formatu/długości na serwerze.",
-                strict=True,
-            ),
-        )
-        for cid, ov, fid, desc in _INVALID_FORMAT_BUG_CASES
-    ],
-)
-def test_signup_boundary_invalid_format(
-    page: Page,
-    user_data: Callable[..., dict],
-    ui_user_cleanup: list,
-    case_id: str,
-    overrides: dict,
-    field_id: str,
-    bug_desc: str,
-) -> None:
-    allure.dynamic.tag("known-bug")
-    allure.dynamic.severity(allure.severity_level.MINOR)
-    allure.dynamic.issue(f"BUG-{case_id.upper()}", bug_desc)
-    allure.dynamic.title(f"Niepoprawny format: {case_id}")
-    allure.dynamic.description(
-        f"Oczekiwane: formularz odrzuca niepoprawną wartość pola '{field_id}'.\n"
-        f"Faktyczne: {bug_desc} — rejestracja przechodzi, wartość zapisana 1:1."
-    )
-
-    user = user_data(**overrides)
-    ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
-
-    login = LoginPage(page)
-    register = RegisterPage(page)
-    login.goto("")
-    login.nav_login.click()
-    login.start_registration(user["name"], user["email"])
-    register.fill_account_form(user)
-
-    allure.attach(
-        page.locator(f"#{field_id}").evaluate("el => el.outerHTML"),
-        name=f"field-{field_id}-outerHTML",
-        attachment_type=allure.attachment_type.HTML,
-    )
-    register.submit()
-    allure.attach(
-        page.screenshot(full_page=True),
-        name="after-submit-screenshot",
-        attachment_type=allure.attachment_type.PNG,
-    )
-    expect(page).not_to_have_url("https://automationexercise.com/account_created")
-
-
-_INVALID_DATE_BUG_CASES = [
-    (
-        "dob_31_february",
-        {"birth_date": "31", "birth_month": "2", "birth_year": "2021"},
-        "31 lutego nie istnieje w żadnym roku",
-    ),
-    (
-        "dob_29_february_nonleap",
-        {"birth_date": "29", "birth_month": "2", "birth_year": "2021"},
-        "2021 nie jest rokiem przestępnym — 29 lutego nie istnieje",
-    ),
-    (
-        "dob_31_april",
-        {"birth_date": "31", "birth_month": "4", "birth_year": "2000"},
-        "kwiecień ma 30 dni — 31 kwietnia nie istnieje",
-    ),
-    (
-        "dob_incomplete_day_only",
-        {"birth_date": "15", "birth_month": "", "birth_year": ""},
-        "wybrano tylko dzień, bez miesiąca i roku",
-    ),
-]
-
-
-@allure.feature("Signup")
-@allure.story("Boundary — niepoprawne wartości odrzucone (grupa B)")
-@pytest.mark.parametrize(
-    "case_id, overrides, bug_desc",
-    [
-        pytest.param(
-            cid, ov, desc, id=cid,
-            marks=pytest.mark.xfail(
-                reason=(
-                    f"KNOWN BUG: data urodzenia nieprawidłowa kalendarzowo ({desc}) "
-                    "jest akceptowana — selecty dni/miesięcy/lat są niezależne "
-                    "(dzień zawsze 1-31 niezależnie od miesiąca), serwer nie "
-                    "waliduje spójności kalendarzowej."
-                ),
-                strict=True,
-            ),
-        )
-        for cid, ov, desc in _INVALID_DATE_BUG_CASES
-    ],
-)
-def test_signup_boundary_invalid_date(
-    page: Page,
-    user_data: Callable[..., dict],
-    ui_user_cleanup: list,
-    case_id: str,
-    overrides: dict,
-    bug_desc: str,
-) -> None:
-    allure.dynamic.tag("known-bug")
-    allure.dynamic.severity(allure.severity_level.MINOR)
-    allure.dynamic.issue(f"BUG-{case_id.upper()}", f"Niepoprawna data akceptowana: {bug_desc}")
-    allure.dynamic.title(f"Niepoprawna data urodzenia: {case_id}")
-    allure.dynamic.description(
-        f"Oczekiwane: formularz odrzuca niepoprawną kalendarzowo datę ({bug_desc}).\n"
-        "Faktyczne: rejestracja przechodzi, data zapisana dokładnie tak, jak wybrana "
-        "w selectach (dzień/miesiąc/rok są od siebie niezależne)."
-    )
-
-    user = user_data(**overrides)
-    ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
-
-    login = LoginPage(page)
-    register = RegisterPage(page)
-    login.goto("")
-    login.nav_login.click()
-    login.start_registration(user["name"], user["email"])
-    register.fill_account_form(user)
-    register.submit()
-    allure.attach(
-        page.screenshot(full_page=True),
-        name="after-submit-screenshot",
-        attachment_type=allure.attachment_type.PNG,
-    )
-    expect(page).not_to_have_url("https://automationexercise.com/account_created")
-
-
-# ============================================================================
-# GRUPA C — bezpieczeństwo. Oba przypadki zweryfikowane na żywo jako
-# BEZPIECZNE (strona poprawnie escapuje HTML przy renderowaniu) — to są
-# zwykłe PASS, nie xfail.
-# ============================================================================
-
-@allure.feature("Signup")
-@allure.story("Boundary — bezpieczeństwo (grupa C)")
-@allure.severity(allure.severity_level.CRITICAL)
-def test_signup_xss_name_is_escaped_not_executed(
-    page: Page,
-    user_data: Callable[..., dict],
-    ui_user_cleanup: list,
-) -> None:
-    allure.dynamic.title("name='<script>alert(1)</script>' — renderowane jako tekst, bez wykonania")
-    payload = "<script>alert(1)</script>"
-    user = user_data(name=payload)
-    ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
-
-    dialogs: list[str] = []
-    page.on("dialog", lambda d: (dialogs.append(d.message), d.dismiss()))
-
-    login = LoginPage(page)
-    register = RegisterPage(page)
-    with allure.step("Rejestracja z payloadem XSS w polu name"):
-        login.goto("")
-        login.nav_login.click()
-        login.start_registration(user["name"], user["email"])
-        register.fill_account_form(user)
-        register.submit()
-        expect(page).to_have_url("https://automationexercise.com/account_created")
-        register.click_continue()
-
-    with allure.step("Weryfikacja: tekst wyświetlony dosłownie, żaden dialog się nie otworzył"):
-        logged_in = page.locator("text=Logged in as")
-        expect(logged_in).to_be_visible()
-        assert dialogs == [], f"Wykonał się dialog — XSS zadziałał: {dialogs}"
-        script_elements = page.locator(f"script:has-text('alert(1)')")
-        assert script_elements.count() == 0, "Znaleziono wykonywalny <script> w DOM"
-
-
-@allure.feature("Signup")
-@allure.story("Boundary — bezpieczeństwo (grupa C)")
-def test_signup_sqli_like_name_saved_literally(
-    page: Page,
-    account_api: AccountApi,
-    user_data: Callable[..., dict],
-    ui_user_cleanup: list,
-) -> None:
-    allure.dynamic.title("name=\"' OR '1'='1\" — rejestracja normalna, wartość 1:1")
-    payload = "' OR '1'='1"
-    user = user_data(name=payload)
-    ui_user_cleanup.append({"email": user["email"], "password": user["password"]})
-
-    login = LoginPage(page)
-    register = RegisterPage(page)
-    with allure.step("Rejestracja z payloadem SQLi-podobnym w polu name"):
-        login.goto("")
-        login.nav_login.click()
-        login.start_registration(user["name"], user["email"])
-        register.fill_account_form(user)
-        register.submit()
-        expect(page).to_have_url("https://automationexercise.com/account_created")
-
-    with allure.step("Weryfikacja: wartość zapisana dosłownie przez API"):
-        result = account_api.get_by_email(user["email"])
-        assert result.get("responseCode") == 200, result
-        assert result["user"]["name"] == payload

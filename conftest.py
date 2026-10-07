@@ -48,9 +48,10 @@ def _fc_consent(playwright):
 
 
 @pytest.fixture(scope="session")
-def browser_context_args(browser_context_args, _fc_consent):
+def browser_context_args(browser_context_args, _fc_consent, base_url):
     args = {
         **browser_context_args,
+        "base_url": base_url,
         "viewport": {"width": 1280, "height": 720},
         "locale": "en-US",
     }
@@ -63,7 +64,7 @@ def browser_context_args(browser_context_args, _fc_consent):
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
-    return os.getenv("BASE_URL", "https://automationexercise.com")
+    return os.getenv("BASE_URL", "https://automationexercise.com").rstrip("/") + "/"
 
 
 @pytest.fixture(scope="session")
