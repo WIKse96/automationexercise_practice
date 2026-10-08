@@ -82,3 +82,20 @@ class BasePage:
 
     def click_continue(self) -> None:
         self.continue_button.click()
+
+    # --- Newsletter subscription (footer, present on every page) ---
+    @property
+    def subscription_email(self) -> Locator:
+        return self.page.locator("#susbscribe_email")
+
+    @property
+    def subscription_button(self) -> Locator:
+        return self.page.locator("#subscribe")
+
+    @property
+    def subscription_success(self) -> Locator:
+        return self.page.locator("#success-subscribe")
+
+    def subscribe(self, email: str) -> None:
+        self.subscription_email.fill(email)
+        self.subscription_button.click()
