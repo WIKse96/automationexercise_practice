@@ -7,6 +7,7 @@ from playwright.sync_api import Page, expect
 from pages.add_to_cart_modal_page import AddToCartModalPage
 from pages.cart_page import CartPage
 from pages.product_card_page import ProductCardPage
+from pages.product_listing_page import ProductListingPage
 
 PRODUCT_ID = 39
 
@@ -93,3 +94,26 @@ def test_continue_shopping_button_does_not_redirect(page: Page, base_url: str) -
     with allure.step("Poczekaj 1s i zweryfikuj brak przekierowania"):
         page.wait_for_timeout(1_000)
         expect(page).to_have_url(product_url)
+
+
+@allure.feature("Product listing")
+@allure.story("Add to cart")
+@pytest.mark.parametrize(
+    "path",
+    ["", "brand_products/Polo", "category_products/6"],
+    ids=["home", "brand_products", "category_products"],
+)
+def test_add_to_cart_from_listing_shows_modal(page: Page, path: str) -> None:
+    allure.dynamic.title(f"Add to cart z listingu (hover) pokazuje modal 'Added!' [{path or 'home'}]")
+
+    listing = ProductListingPage(page)
+    modal = AddToCartModalPage(page)
+
+    with allure.step(f"Otwórz /{path} i dodaj pierwszy produkt przez hover + overlay"):
+        listing.open(path)
+        listing.add_first_product_to_cart()
+
+    with allure.step("Zweryfikuj, że modal 'Added!' się pojawił"):
+        expect(modal.modal).to_be_visible()
+        expect(modal.title).to_have_text("Added!")
+        expect(modal.body_text).to_contain_text("Your product has been added to cart")

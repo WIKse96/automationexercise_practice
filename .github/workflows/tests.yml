@@ -23,7 +23,7 @@ jobs:
         run: playwright install --with-deps chromium firefox
 
       - name: Uruchom testy (Chromium + Firefox)
-        run: pytest "tests/ui/test_add_to_cart.py::test_view_cart_link_in_modal_shows_added_product[chromium-999]" "tests/ui/test_signup_boundary.py::test_signup_field_long_value_accepted[chromium-255_znakow-name]" "tests/ui/test_signup_boundary.py::test_signup_field_long_value_accepted[chromium-256_znakow-last_name]" "tests/ui/test_signup_boundary.py::test_signup_field_long_value_accepted[chromium-256_znakow-state]" --reruns 2 --reruns-delay 2
+        run: pytest --browser firefox --alluredir=reports/allure_results
 
       - name: Zapisz raport jako artefakt (nawet jeśli testy padły)
         if: always()
