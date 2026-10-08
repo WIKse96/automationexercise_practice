@@ -1,5 +1,3 @@
-import re
-
 import allure
 import pytest
 from playwright.sync_api import Page, expect
@@ -7,12 +5,9 @@ from playwright.sync_api import Page, expect
 from pages.add_to_cart_modal_page import AddToCartModalPage
 from pages.cart_page import CartPage
 from pages.product_card_page import ProductCardPage
+from utils.price import parse_price
 
 PRODUCT_ID = 39
-
-
-def _parse_price(price_text: str) -> int:
-    return int(re.sub(r"[^\d]", "", price_text))
 
 
 @allure.feature("Product card")
@@ -52,7 +47,7 @@ def test_view_cart_link_in_modal_shows_added_product(
     with allure.step(f"Otwórz kartę produktu {PRODUCT_ID}, ustaw ilość {quantity} i dodaj do koszyka"):
         product_card.open(PRODUCT_ID)
         product_name = product_card.product_name.inner_text()
-        unit_price = _parse_price(product_card.product_price.inner_text())
+        unit_price = parse_price(product_card.product_price.inner_text())
         product_card.quantity_input.fill(str(quantity))
         product_card.add_to_cart_button.click()
         expect(modal.modal).to_be_visible()
@@ -70,7 +65,7 @@ def test_view_cart_link_in_modal_shows_added_product(
 
     with allure.step("Zweryfikuj ilość i poprawnie wyliczoną sumę za produkt"):
         assert cart.get_product_quantity(0) == str(quantity)
-        assert _parse_price(cart.get_product_total(0)) == unit_price * quantity
+        assert parse_price(cart.get_product_total(0)) == unit_price * quantity
 
 
 @allure.feature("Product card")
