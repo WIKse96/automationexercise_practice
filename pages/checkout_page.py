@@ -23,16 +23,6 @@ class CheckoutPage(BasePage):
     def view_cart_modal_link(self) -> Locator:
         return self.page.locator(".modal-content a:has-text('View Cart')")
 
-    @property
-    def order_comment_textarea(self) -> Locator:
-        return self.page.locator("#ordermsg textarea[name='message']")
-
-    @property
-    def place_order_button(self) -> Locator:
-        # Ten sam selektor co checkout_button (a.check_out) — na stronie /checkout
-        # to już nie "Proceed To Checkout" z koszyka, tylko "Place Order".
-        return self.page.locator("a.check_out")
-
     # --- Actions ---
     def add_first_product_to_cart(self) -> None:
         self.goto("products")
@@ -48,12 +38,6 @@ class CheckoutPage(BasePage):
 
     def go_to_checkout(self) -> None:
         self.checkout_button.click()
-
-    def fill_order_comment(self, comment: str) -> None:
-        self.order_comment_textarea.fill(comment)
-
-    def place_order(self) -> None:
-        self.place_order_button.click()
 
     def delivery_address_text(self) -> str:
         return self.delivery_address_block.inner_text()
